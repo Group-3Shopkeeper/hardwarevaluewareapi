@@ -55,7 +55,7 @@ public class UserController {
 			return new ResponseEntity<User>(user,HttpStatus.OK);
 	}
 	@PostMapping("/update")
-    public ResponseEntity<?> updateProduct(@RequestParam("file") MultipartFile file,
+    public ResponseEntity<?> updateUser(@RequestParam("file") MultipartFile file,
     		@RequestParam("userId") String userId,
     		@RequestParam("name") String name,
     		@RequestParam("address") String address,
