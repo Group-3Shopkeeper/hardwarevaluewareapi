@@ -39,88 +39,97 @@ import com.hardwarevaluewareapi.exception.ResourceNotFoundException;
 
 @Service
 public class ProductService {
-	
-	Firestore fireStore = FirestoreClient.getFirestore(); 
+
+	Firestore fireStore = FirestoreClient.getFirestore();
+
 	public Product saveProduct(MultipartFile file, Product product) throws IOException {
-	    String imageUrl = new SaveImage().sendImage(file);
-        String productId = fireStore.collection("Product").document().getId().toString();
-        product.setImageUrl(imageUrl);
-        java.sql.Timestamp timestamp = new java.sql.Timestamp(System.currentTimeMillis());
-        product.setTimestamp(timestamp.getTime());
-        product.setProductId(productId);
-        
-        fireStore.collection("Product").document(productId).set(product);
-        return product;
+		String imageUrl = new SaveImage().sendImage(file);
+		String productId = fireStore.collection("Product").document().getId().toString();
+		product.setImageUrl(imageUrl);
+		java.sql.Timestamp timestamp = new java.sql.Timestamp(System.currentTimeMillis());
+		product.setTimestamp(timestamp.getTime());
+		product.setProductId(productId);
+
+		fireStore.collection("Product").document(productId).set(product);
+		return product;
 	}
-    public Product getProduct(String productId) throws InterruptedException, ExecutionException {
-    	Product product =  fireStore.collection("Product").document(productId).get().get().toObject(Product.class);
-	   	return product;
+
+	public Product getProduct(String productId) throws InterruptedException, ExecutionException {
+		Product product = fireStore.collection("Product").document(productId).get().get().toObject(Product.class);
+		return product;
 	}
-	public Product updateProduct(MultipartFile file, Product product) throws IOException, InterruptedException, Exception {
-		  String imageUrl  = new SaveImage().sendImage(file);
-	      java.sql.Timestamp timestamp = new java.sql.Timestamp(System.currentTimeMillis());
-	      product.setTimestamp(timestamp.getTime());
-	      product.setProductId(product.getProductId());
-	      product.setImageUrl(imageUrl);
-	      fireStore.collection("Product").document(product.getProductId()).set(product);
-	      return product;
+
+	public Product updateProduct(MultipartFile file, Product product)
+			throws IOException, InterruptedException, Exception {
+		String imageUrl = new SaveImage().sendImage(file);
+		java.sql.Timestamp timestamp = new java.sql.Timestamp(System.currentTimeMillis());
+		product.setTimestamp(timestamp.getTime());
+		product.setProductId(product.getProductId());
+		product.setImageUrl(imageUrl);
+		fireStore.collection("Product").document(product.getProductId()).set(product);
+		return product;
 	}
-    public Product deleteProduct(String productId) throws InterruptedException, ExecutionException, ResourceNotFoundException {
+
+	public Product deleteProduct(String productId)
+			throws InterruptedException, ExecutionException, ResourceNotFoundException {
 		DocumentReference documentReference = fireStore.collection("Product").document(productId);
 		Product product = documentReference.get().get().toObject(Product.class);
 		documentReference.delete();
-    	return product;
-    }
-    public ArrayList<Product> getDiscountedProduct() throws InterruptedException, ExecutionException {
+		return product;
+	}
+
+	public ArrayList<Product> getDiscountedProduct() throws InterruptedException, ExecutionException {
 		ArrayList<Product> pl = new ArrayList<Product>();
-		ApiFuture<QuerySnapshot> apiFuture = fireStore.collection("Product").orderBy("timestamp", Direction.DESCENDING).limit(10).get();
+		ApiFuture<QuerySnapshot> apiFuture = fireStore.collection("Product").orderBy("timestamp", Direction.DESCENDING)
+				.get();
+		QuerySnapshot querySnapshot = apiFuture.get();
+		List<QueryDocumentSnapshot> documentSnapshotList = querySnapshot.getDocuments();
+		int counter=0;
+		for (QueryDocumentSnapshot document : documentSnapshotList) {
+			Product product = document.toObject(Product.class);
+			double discount = product.getDiscount();
+
+			if (discount > 0) {
+				pl.add(product);
+				counter++;
+			}
+			if(counter == 10)
+				break;
+		
+	}
+		return pl;
+
+	}
+
+	public List<Product> getRecentProduct() throws InterruptedException, ExecutionException {
+		List<Product> list;
+		CollectionReference collectionReference = fireStore.collection("Product");
+		Query queryi = collectionReference.orderBy("timestamp", Direction.DESCENDING).limit(10);
+		list = queryi.get().get().toObjects(Product.class);
+		return list;
+	}
+
+	public List<Product> getProductByCategory(String categoryId) throws InterruptedException, ExecutionException {
+		List<Product> list;
+		CollectionReference collectionReference = fireStore.collection("Product");
+		Query queryi = collectionReference.whereEqualTo("categoryId", categoryId);
+		list = queryi.get().get().toObjects(Product.class);
+		return list;
+	}
+
+	public ArrayList<Product> searchProductByName(String name) throws InterruptedException, ExecutionException {
+		ArrayList<Product> pl = new ArrayList<Product>();
+		ApiFuture<QuerySnapshot> apiFuture = fireStore.collection("Product").get();
 		QuerySnapshot querySnapshot = apiFuture.get();
 		List<QueryDocumentSnapshot> documentSnapshotList = querySnapshot.getDocuments();
 		for (QueryDocumentSnapshot document : documentSnapshotList) {
 			Product product = document.toObject(Product.class);
-			double discount = product.getDiscount();
-			if (discount > 0) {
+			name = name.toLowerCase();
+			String doc = product.getName().toLowerCase();
+			if (doc.contains(name)) {
 				pl.add(product);
 			}
 		}
 		return pl;
-	}
-    public List<Product> getRecentProduct() throws InterruptedException, ExecutionException {
-    	List<Product> list;
-        CollectionReference collectionReference =  fireStore.collection("Product");
-	    Query queryi = collectionReference.orderBy("timestamp", Direction.DESCENDING).limit(10);
-        list = queryi.get().get().toObjects(Product.class);
-    	return list;
-    }
-    public List<Product> getProductByCategory(String categoryId) throws InterruptedException, ExecutionException {
-    	List<Product> list;
-        CollectionReference collectionReference =  fireStore.collection("Product");
-	    Query queryi = collectionReference.whereEqualTo("categoryId", categoryId);
-        list = queryi.get().get().toObjects(Product.class);
-    	return list;
-    }
-    public Product sendImage(MultipartFile file, Product product) throws IOException {
-		  
-		  InputStream serviceAccount=this.getClass().getClassLoader().getResourceAsStream("./serviceAccountKey.json");
-		  Storage storage=StorageOptions.newBuilder().setProjectId("hardwarevalueapi")
-				  .setCredentials(GoogleCredentials.fromStream(serviceAccount)).build().getService();
-		  
-		  HashMap<String,String> hm=new HashMap<>();
-		  hm.put("firebaseStorageDownloadTokens", "3434434343434dfdf");
-		  BlobId blobid=BlobId.of("hardwarevalueapi.appspot.com", file.getOriginalFilename());
-		  BlobInfo blobInfo=BlobInfo.newBuilder(blobid).setContentType("image/jpeg").setMetadata(hm).build();
-		  
-		  File convertedFile=new File(file.getOriginalFilename());
-		  FileOutputStream fos=new FileOutputStream(convertedFile);
-		  fos.write(file.getBytes());
-		  fos.close();
-		  
-		  Blob blob =storage.create(blobInfo,Files.readAllBytes(convertedFile.toPath()));
-		  Bucket bucket = StorageClient.getInstance().bucket("hardwarevalueapi.appspot.com");
-		 
-		  String imageUrl = "https://firebasestorage.googleapis.com/v0/b/hardwarevalueapi.appspot.com/o/"+convertedFile+"?alt=media&token=3434434343434dfdf";
-	      System.out.println("Image Url : "+imageUrl);
-	      product.setImageUrl(imageUrl);
-		  return product;
 	}
 }

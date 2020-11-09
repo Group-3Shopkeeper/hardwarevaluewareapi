@@ -81,10 +81,10 @@ public class ProductController {
     }
 
 	@DeleteMapping("/{id}")
-	public ResponseEntity<?> deleteProduct(@PathVariable String productId) throws InterruptedException, ExecutionException, ResourceNotFoundException {
-		Product product =  productService.deleteProduct(productId);
+	public ResponseEntity<?> deleteProduct(@PathVariable String id) throws InterruptedException, ExecutionException, ResourceNotFoundException {
+		Product product =  productService.deleteProduct(id);
 		if(product == null) {
-			throw new ResourceNotFoundException("Not found "+productId);
+			throw new ResourceNotFoundException("Not found "+id);
 		}
 		else
 		  return new ResponseEntity<Product>(product,HttpStatus.OK);
@@ -126,4 +126,15 @@ public class ProductController {
 			throw new ResourceNotFoundException("Product Not Found");
 		}	
 	}
+	@GetMapping("/name/{name}")
+	public ResponseEntity<List<Product>> searchProductByName(@PathVariable("name") String name)
+			throws InterruptedException, ExecutionException, ResourceNotFoundException {
+		ArrayList<Product> productList = productService.searchProductByName(name);
+		if (productList != null) {
+			return new ResponseEntity<List<Product>>(productList, HttpStatus.OK);
+		} else {
+			throw new ResourceNotFoundException("Product Not Found");
+		}
+	}
+	
 }
